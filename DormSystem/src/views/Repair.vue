@@ -9,7 +9,6 @@ import {reactive, ref} from "vue";
 import {myUtils} from "@/utils/myUtils.js";
 import {useTokenStore} from '@/store/token.js'
 import {repairapi} from "@/api/repair.js";
-import {moveInfoStore} from "@/store/move.js";
 import {repairInfoStore} from "@/store/repair.js";
 
 const token = useTokenStore()

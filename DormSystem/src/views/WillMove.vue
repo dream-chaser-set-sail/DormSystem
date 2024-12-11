@@ -20,6 +20,8 @@ function submitForm() {
     moveapi.add(form.value).then(function (obj) {
         if (obj.code == 0) {
             if (active.value++ > 2) active.value = 0
+            // moveInfo.setMoveInfo(form.value)
+            moveInfo.setActiveInfo(active.value)
             disabled.value = true
         } else {
             myUtils.open(obj.code, obj.msg)
@@ -59,7 +61,6 @@ function yes() {
     moveapi.updateStateInEND(mid.value, form.value.name).then(obj => {
         if (obj.code == 0) {
             myUtils.open(obj.code, obj.msg)
-            // moveInfo.removeMoveInfo()
         } else {
             myUtils.open(obj.code, obj.msg)
         }

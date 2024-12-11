@@ -11,7 +11,6 @@ import {moveapi} from "@/api/move.js";
 import {myUtils} from "@/utils/myUtils.js";
 import {useTokenStore} from '@/store/token.js'
 import {adminInfoStore} from "@/store/adminInfo.js";
-import {moveInfoStore} from "@/store/move.js";
 
 const token = useTokenStore()
 const tatal = ref(0)
