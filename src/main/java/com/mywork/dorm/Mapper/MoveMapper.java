@@ -60,6 +60,18 @@ public interface MoveMapper {
     @Update("update move set status = '已拒绝' where id = #{id}")
     Integer updateByStatusNo(Integer id);
 
+    @Update("update move set status = 'END' where id = #{id}")
+    Integer updateByStatusEND(Integer id);
+
     @Select("select * from dormitories")
     List<Dorm> selectByDormAll();
+
+    @Select("select count(*) from move where name = #{name} and status != 'END'")
+    Integer selectByNameCount(String name);
+
+    @Select("select * from move where id = #{mid}")
+    Move selectByMove(Integer mid);
+
+    @Select("select id from move where name = #{name} and status = '审核中'")
+    Integer selectByMoveId(String name);
 }

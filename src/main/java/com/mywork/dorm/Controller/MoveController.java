@@ -67,4 +67,13 @@ public class MoveController {
         return moveService.updateByNo(move);
     }
 
+    @GetMapping("/selectByStatus/{name}")
+    public Result selectByStatus(@PathVariable String name) {
+        return moveService.selectByStatus(name);
+    }
+
+    @GetMapping("/updateStateInEND/{id}/{name}")
+    public Result updateStateInEND(@PathVariable Integer id, @PathVariable String name) {
+        return moveService.updateStateInEND(id, name);
+    }
 }

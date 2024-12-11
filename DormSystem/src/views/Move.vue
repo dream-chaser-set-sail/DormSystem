@@ -71,9 +71,6 @@ function submitUser(){
         case 1:
             moveapi.update(form.value).then(function (obj){
                 myUtils.open(obj.code, obj.msg)
-                if (obj.code == 0) {
-                    moveInfoStore().setActiveInfo(3)
-                }
                 loadData()
             })
             break
@@ -82,7 +79,6 @@ function submitUser(){
             moveapi.add(form.value).then(function (obj){
                 myUtils.open(obj.code, obj.msg)
                 dialogFormVisible.value = false
-                location.reload()
                 loadData()
             })
             break
@@ -121,7 +117,6 @@ function selectByDorm(){
 
 function selectByName(){
     moveapi.selectByName().then(function (obj){
-        console.log(obj.data)                       ;
         moveName.value = obj.data
     })
 }

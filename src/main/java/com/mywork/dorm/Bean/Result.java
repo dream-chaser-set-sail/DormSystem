@@ -42,4 +42,5 @@ public class Result<T> {
     public static Result loginMsg(Integer code, String msg, String token) {
         return new Result(code, msg, null, token, null);
     }
+
 }

@@ -29,4 +29,10 @@ export const moveapi = {
     updateByNo(move) {
         return service.put('/move/updateByNo', move)
     },
+    selectByStatus(name) {
+        return service.get(`/move/selectByStatus/${name}`)
+    },
+    updateStateInEND(id, name) {
+        return service.get(`/move/updateStateInEND/${id}/${name}`)
+    }
 }

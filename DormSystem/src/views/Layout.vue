@@ -133,6 +133,7 @@ import {myUtils} from "@/utils/myUtils.js";
 import {useTokenStore} from "@/store/token.js"
 import {adminInfoStore} from '@/store/adminInfo.js'
 import {adminapi} from "@/api/admin.js";
+import {moveInfoStore} from "@/store/move.js";
 
 const role = ref()
 const routers = router;

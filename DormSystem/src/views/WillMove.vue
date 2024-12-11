@@ -1,13 +1,14 @@
 <script setup>
 import {ref} from "vue";
 import {moveapi} from "@/api/move.js";
-import {moveInfoStore} from "@/store/move.js";
+import {myUtils} from "@/utils/myUtils.js";
+import {adminInfoStore} from "@/store/adminInfo.js";
 
-const moveInfo = moveInfoStore()
 const form = ref({})
 const moveDorm = ref({})
 const active = ref(0)
 const disabled = ref(false)
+const mid = ref(null)
 
 function selectByDorm(){
     moveapi.selectByDorm().then(function (obj){
@@ -17,12 +18,11 @@ function selectByDorm(){
 
 function submitForm() {
     moveapi.add(form.value).then(function (obj) {
-        console.log(obj);
-        if (obj.msg == '操作成功') {
+        if (obj.code == 0) {
             if (active.value++ > 2) active.value = 0
-            moveInfo.setMoveInfo(form.value)
-            moveInfo.setActiveInfo(active.value)
             disabled.value = true
+        } else {
+            myUtils.open(obj.code, obj.msg)
         }
     })
 }
@@ -32,15 +32,38 @@ function resetForm() {
 }
 
 function brushFrom() {
-    form.value = moveInfo.move
-    active.value = moveInfo.active
-    if (active.value != 0) {
-        disabled.value = true
-    }
+    form.value.name = adminInfoStore().admin.name
+    moveapi.selectByStatus(form.value.name).then(obj => {
+        if (obj.code == 0) {
+            if (obj.dataClass != null) {
+                mid.value = obj.dataClass.id
+                if (obj.dataClass.status != '审核中') {
+                    active.value = 3
+                    form.value.moveDormId = obj.dataClass.moveDormId
+                    disabled.value = true
+                } else {
+                    active.value = 2
+                    form.value.moveDormId = obj.dataClass.moveDormId
+                    if (active.value != 0) {
+                        disabled.value = true
+                    }
+                }
+            } else {
+                form.value = {}
+            }
+        }
+    })
 }
 
 function yes() {
-    moveInfo.removeMoveInfo()
+    moveapi.updateStateInEND(mid.value, form.value.name).then(obj => {
+        if (obj.code == 0) {
+            myUtils.open(obj.code, obj.msg)
+            // moveInfo.removeMoveInfo()
+        } else {
+            myUtils.open(obj.code, obj.msg)
+        }
+    })
     location.reload()
 }
 

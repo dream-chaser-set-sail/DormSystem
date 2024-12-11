@@ -10,12 +10,10 @@ import com.mywork.dorm.Utils.AccountUtil;
 import com.mywork.dorm.Utils.JwtUtil;
 import com.mywork.dorm.Utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class MoveService {
@@ -30,7 +28,7 @@ public class MoveService {
     private DormMapper dormMapper;
 
     @Autowired
-    private SupervisorMapper supervisorMapper;
+    private RedisTemplate redisTemplate;
 
     public Result list(Query query) {
         int Page = (query.getPage() - 1) * query.getLimit();
@@ -81,46 +79,59 @@ public class MoveService {
 
     public Result add(Move move) {
         Integer num = 0;
-        // 通过学生姓名查询学生信息
-        Student student = studentMapper.selectByName(move.getName());
-        // 通过学生信息中的宿舍号获得迁出宿舍(如果是null表示该学生未分配宿舍)
-        move.setBeforeDormId(student.getDormId());
-        // 根据期望迁宿的id查询宿舍信息
-        Dorm dorm = dormMapper.selectById(move.getMoveDormId());
-        // 使用线程传递token
-        Map<String, Object> tokens = ThreadLocalUtil.get();
-        String account = (String) tokens.get("id");
+        Integer stuNum = moveMapper.selectByNameCount(move.getName());
+        if (stuNum == 0) {
+            // 通过学生姓名查询学生信息
+            Student student = studentMapper.selectByName(move.getName());
+            // 通过学生信息中的宿舍号获得迁出宿舍(如果是null表示该学生未分配宿舍)
+            move.setBeforeDormId(student.getDormId());
+            // 根据期望迁宿的id查询宿舍信息
+            Dorm dorm = dormMapper.selectById(move.getMoveDormId());
+            // 使用线程传递token
+            Map<String, Object> tokens = ThreadLocalUtil.get();
+            String account = (String) tokens.get("id");
+            String name = (String) tokens.get("name");
 
-        //判断操作人员身份
-        Integer roleNum = AccountUtil.selectByRole(account);
-        if (roleNum == 2 || roleNum == 3){
-            move.setStatus("已通过");
-        }else if (roleNum == 1) {
-            move.setStatus("审核中");
-        }
+            //判断操作人员身份
+            Integer roleNum = AccountUtil.selectByRole(account);
+            if (roleNum == 2 || roleNum == 3) {
+                move.setStatus("已通过");
+            } else if (roleNum == 1) {
+                // 如果学生姓名与查询姓名相符就继续进行，不符就返回
+                if (!student.getName().equals(name)) {
+                    return Result.error("姓名不符，请谨慎操作！");
+                }
+                move.setStatus("审核中");
+            }
 
-        // 修改学生宿舍信息(迁入宿舍)并添加迁出记录到表,并且修改相应宿舍人数
-        if (student.getDormId() == null) {
-            if (move.getStatus().equals("已通过")){
-                if (dorm.getCapacity()-1 == dorm.getPeople()) {
-                    studentMapper.updateByDormId(student.getId(), move.getMoveDormId());
-                    dormMapper.updateByPeopleNumAdd(move.getMoveDormId());
-                    dormMapper.updateByStatus(move.getMoveDormId());
-                } else {
-                    studentMapper.updateByDormId(student.getId(), move.getMoveDormId());
-                    dormMapper.updateByPeopleNumAdd(move.getMoveDormId());
+            // 修改学生宿舍信息(迁入宿舍)并添加迁出记录到表,并且修改相应宿舍人数
+            if (student.getDormId() == null) {
+                if (move.getStatus().equals("已通过")) {
+                    if (dorm.getCapacity() - 1 == dorm.getPeople()) {
+                        studentMapper.updateByDormId(student.getId(), move.getMoveDormId());
+                        dormMapper.updateByPeopleNumAdd(move.getMoveDormId());
+                        dormMapper.updateByStatus(move.getMoveDormId());
+                    } else {
+                        studentMapper.updateByDormId(student.getId(), move.getMoveDormId());
+                        dormMapper.updateByPeopleNumAdd(move.getMoveDormId());
+                    }
+                }
+            } else if (roleNum != 1) {
+                return Result.error("您无权对已有宿舍的学生再次进行迁宿");
+            } else if (roleNum == 1) {
+                num = moveMapper.add(move);
+                if (num != 0) {
+                    Integer mid = moveMapper.selectByMoveId(move.getName());
+                    redisTemplate.opsForValue().set(move.getName(), mid);
                 }
             }
-        } else if (roleNum != 1) {
-            return Result.error("您无权对已有宿舍的学生再次进行迁宿");
-        } else  if (roleNum == 1){
-            num = moveMapper.add(move);
-        }
 
-        if (num != 0){
-            return Result.ok("操作成功");
+            if (num != 0) {
+                return Result.ok("操作成功");
+            }
+            return Result.error("操作失败");
         }
-        return Result.error("操作失败");
+        return Result.error("存在未处理申请，请勿重复提交");
     }
 
     public Result selectById(Integer id) {
@@ -149,8 +160,6 @@ public class MoveService {
         if (num != 0){
             dormMapper.updateByPeopleNumAdd(move.getMoveDormId());
             dormMapper.updateByPeopleNumsub(move.getBeforeDormId());
-
-            // 发送消息...
 
             return Result.ok("已批复");
         }
@@ -204,18 +213,30 @@ public class MoveService {
     }
 
     public Result selectByName() {
-        System.out.println("=========================================================================");
         System.out.println("MoveService.selectByName");
-        System.out.println("=========================================================================");
         List<DormName> dormNames = studentMapper.selectForMove();
         for (int i = 0; i < dormNames.size(); i++) {
             dormNames.get(i).setId(i+1);
         }
 
-        System.out.println("=========================================================================");
-        System.out.println(dormNames);
-        System.out.println("=========================================================================");
-
         return Result.selList(dormNames);
+    }
+
+    public Result selectByStatus(String name) {
+        Integer mid = (Integer) redisTemplate.opsForValue().get(name);
+        Move move = moveMapper.selectByMove(mid);
+        if (move != null) {
+            return Result.clazz(move);
+        }
+        return Result.clazz(null);
+    }
+
+    public Result updateStateInEND(Integer id, String name) {
+        redisTemplate.delete(name);
+        Integer num = moveMapper.updateByStatusEND(id);
+        if (num != 0) {
+            return Result.ok("已确认");
+        }
+        return Result.error("系统错误，请重试！");
     }
 }
